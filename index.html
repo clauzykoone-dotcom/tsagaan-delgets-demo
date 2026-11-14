@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Цагаан дэлгэц демо</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: phone-first short-drama app. Viewer: series grid, episode sheet, monthly pass paid by QR with a reference code. Admin tab: pending payments to confirm, active passes, month revenue. */
+:root{
+  --velvet:#160c14; --velvet-2:#241521; --line:#3f2638;
+  --screen:#f7eef2; --muted:#bfa3b4; --gold:#f2b84b; --gold-ink:#2a1a05; --rose:#e2557a;
+  --ok:#7fd1a0; --warn:#f2b84b; --bad:#ff7a7a;
+  --display:"Oswald","Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--velvet);color:var(--screen);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.proto{background:var(--gold);color:var(--gold-ink);font-size:13px;font-weight:500}
+.proto .wrap{padding-block:8px}
+header .wrap{padding-block:16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.logo{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:0}
+.logo span{color:var(--gold)}
+.right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.status{font-size:13px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.status.ok{border-color:var(--ok);color:var(--ok)}
+.status.wait{border-color:var(--warn);color:var(--warn)}
+.pill{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px;font-weight:600;font-size:13px}
+.pill.pri{background:var(--rose);color:#fff}
+.pill.ghost{border:1px solid var(--line);color:var(--muted)}
+.pill[aria-pressed="true"]{background:var(--screen);color:var(--velvet);border-color:var(--screen)}
+button:focus-visible,a:focus-visible,.card:focus-visible{outline:2px solid var(--screen);outline-offset:2px}
+.hero{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:22px;align-items:end;padding-block:8px 18px}
+.hero h2{font-family:var(--display);font-size:clamp(28px,5vw,44px);text-transform:uppercase;margin:0 0 6px;line-height:1.05;text-wrap:balance}
+.hero p{color:var(--muted);margin:0 0 14px;max-width:52ch}
+.sub{color:var(--muted);font-size:14px;margin:4px 0 12px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tag{font-size:12px;border:1px solid var(--line);border-radius:3px;padding:2px 8px;color:var(--muted)}
+.btn{all:unset;cursor:pointer;padding:10px 18px;border-radius:4px;font-weight:600;display:inline-block;text-align:center}
+.btn.pri{background:var(--gold);color:var(--gold-ink)}
+.btn.sec{border:1px solid var(--line);color:var(--muted)}
+.btn.okb{background:var(--ok);color:#0d2016}
+.btn.small{padding:6px 12px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:default}
+nav .wrap{display:flex;gap:8px;flex-wrap:wrap;padding-block:10px}
+h3.shelf{font-family:var(--display);font-weight:500;text-transform:uppercase;letter-spacing:.08em;font-size:15px;color:var(--muted);margin:18px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:16px;padding-bottom:20px}
+.card{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0}
+.poster{aspect-ratio:9/16;width:100%;max-width:100%;border-radius:6px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;transition:transform .2s}
+.poster::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.65))}
+.poster>*{position:relative;z-index:1}
+.card:hover .poster{transform:translateY(-3px)}
+.pt{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:20px;line-height:1.05;text-wrap:balance;color:#fff}
+.badge{position:absolute;top:8px;left:8px;z-index:1;font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:2px;background:rgba(0,0,0,.55);color:#fff;letter-spacing:.04em}
+.meta{font-size:13px;color:var(--muted)}
+.meta strong{color:var(--screen);font-weight:500;display:block;font-size:14px}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+footer .wrap{padding-block:20px}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,4,8,.72);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet{background:var(--velvet-2);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:22px max(18px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+.sheet h4{font-family:var(--display);text-transform:uppercase;font-size:26px;margin:0;line-height:1.1}
+.sheet p{margin:0 0 14px}
+.eps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.ep{all:unset;cursor:pointer;text-align:center;padding:10px 0;border-radius:4px;background:var(--velvet);border:1px solid var(--line);font-family:var(--mono);font-size:13px;position:relative}
+.ep.free{border-color:var(--ok);color:var(--ok)}
+.ep.open{border-color:var(--gold);color:var(--gold)}
+.ep.locked{color:var(--muted)}
+.ep.locked::after{content:"🔒";position:absolute;top:-6px;right:-4px;font-size:10px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.player{aspect-ratio:9/16;max-height:52vh;margin:0 auto 14px;border-radius:8px;display:flex;flex-direction:column;justify-content:space-between;padding:14px;color:#fff;max-width:100%}
+.player .cap{font-size:13px;background:rgba(0,0,0,.45);padding:6px 8px;border-radius:4px}
+.player .play{align-self:center;font-family:var(--display);font-size:22px;color:var(--gold)}
+.wm{position:absolute;top:38%;right:10%;font-family:var(--mono);font-size:13px;color:#fff;opacity:.28;transform:rotate(-14deg);pointer-events:none;user-select:none;animation:wm 18s linear infinite alternate}
+@keyframes wm{0%{top:38%;right:10%}50%{top:62%;right:48%}100%{top:20%;right:30%}}
+@media (prefers-reduced-motion:reduce){.wm{animation:none}}
+.player{-webkit-user-select:none;user-select:none}
+.qr{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+canvas{background:#fff;border-radius:4px;width:160px;height:160px}
+.amt{font-family:var(--mono);font-size:24px;color:var(--gold)}
+.ref{font-family:var(--mono);font-size:20px;letter-spacing:.06em;background:var(--velvet);border:1px dashed var(--gold);border-radius:4px;padding:6px 10px;display:inline-block;color:var(--gold)}
+.steps{margin:0 0 16px;padding-left:20px;color:var(--muted);font-size:14px}
+.steps li{margin-bottom:4px}
+.note{font-size:13px;border-left:2px solid var(--gold);padding:6px 10px;background:rgba(242,184,75,.07);margin-bottom:14px}
+/* admin */
+.admin{padding-block:6px 30px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px;margin-bottom:18px}
+.kpi{border:1px solid var(--line);border-radius:6px;padding:12px 14px;background:var(--velvet-2)}
+.kpi .n{font-family:var(--mono);font-size:26px;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:13px;color:var(--muted)}
+.kpi.attn{border-color:var(--warn)}
+.list{display:grid;gap:8px;margin-bottom:22px}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--velvet-2)}
+.item .who{min-width:0}
+.item .who b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .who span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.chip.wait{color:var(--warn)} .chip.ok{color:var(--ok)} .chip.bad{color:var(--bad)}
+.empty{color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:6px;padding:14px}
+.field{display:grid;gap:6px;margin-bottom:14px}
+.field label{font-size:13px;color:var(--muted)}
+.field input{font:inherit;font-size:20px;font-family:var(--mono);letter-spacing:.08em;padding:10px 12px;border-radius:6px;border:1px solid var(--line);background:var(--velvet);color:var(--screen);width:100%}
+.field input:focus{outline:2px solid var(--gold);outline-offset:1px}
+.err{color:var(--bad);font-size:13px;min-height:18px;margin:-8px 0 10px}
+.demo-code{font-family:var(--mono);color:var(--gold)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--screen);color:var(--velvet);padding:10px 16px;border-radius:6px;font-weight:600;z-index:30}
+@media (max-width:560px){.hero{grid-template-columns:minmax(0,130px) minmax(0,1fr);gap:14px}.hero p{display:none}}
+@media (prefers-reduced-motion:reduce){.poster{transition:none}}
+</style>
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+
+<div class="proto"><div class="wrap" id="proto">Прототип · Цуврал, үнэ, данс бүгд жишээ. Видео хараахан хийгдээгүй.</div></div>
+<header><div class="wrap">
+  <h1 class="logo">Цагаан <span>дэлгэц</span></h1>
+  <div class="right">
+    <button class="pill ghost" type="button" id="auth-btn" data-act="account">Нэвтрэх</button>
+    <span class="status" id="status">Эрхгүй</span>
+    <button class="pill pri" type="button" id="buy-btn" data-act="buy">1 сарын эрх</button>
+    <button class="pill ghost" type="button" id="admin-btn" data-act="admin" aria-pressed="false" hidden>Админ</button>
+  </div>
+</div></header>
+
+<div id="viewer-view">
+  <section class="wrap hero" id="hero"></section>
+  <main class="wrap" id="shelves"></main>
+</div>
+<section class="wrap admin" id="admin-view" hidden></section>
+
+<footer><div class="wrap">Бүх цуврал AI-аар бүтээсэн, Монгол хэлээр ярьдаг, 1–2 минутын ангитай. Төлбөртэй ангийг нэг удаад зөвхөн 1 дэлгэц дээр үзнэ. Эхний 5 анги үнэгүй. Үргэлжлэлийг нэг цувралыг бүтэн түрээслэх (4,900₮) эсвэл 1 сарын эрхээр (9,900₮) үзнэ: QR-аар төлөөд гүйлгээний утган дээр өөрийн кодоо бичнэ, админ шалгаад эрхийг идэвхжүүлнэ.</div></footer>
+
+<div class="scrim" id="scrim" hidden><div class="sheet" role="dialog" aria-modal="true" id="sheet"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const SERIES=[
+ {id:"s5",t:"Тэрбумтны хаягдсан хүү",eps:90,c:["#5a5a2a","#141408"],d:"Хүргэн гэж басамжлуулж явсан Тэмүүлэн үнэндээ Азийн хамгийн баян гэр бүлийн өв залгамжлагч байв.",tags:["Хүргэн","Баян","Нууц"]},
+ {id:"s1",t:"Захирлын нууц эхнэр",eps:60,c:["#b0365a","#2a0d18"],d:"Ажлаасаа халагдсан Сараа санамсаргүйгээр компанийн захиралтай гэрээт гэрлэлт хийнэ.",tags:["Гэрээт гэрлэлт","Захирал"]},
+ {id:"s2",t:"Дахин төрсөн бэр",eps:80,c:["#7a2a1f","#1a0a08"],d:"Хадам ээжийнхээ заль мэхэнд амиа алдсан Номин 5 жилийн өмнөх өдөртөө сэрнэ.",tags:["Дахин төрөлт","Өшөө"]},
+ {id:"s3",t:"Хаан ширээний чонон охин",eps:70,c:["#2f5f7a","#0a141c"],d:"Чонын сүүгээр өссөн охин хааны ордонд зарцаар орж, нууц хуйвалдааныг илрүүлнэ.",tags:["Түүхэн","Ордон"]},
+ {id:"s7",t:"Шөнийн такси",eps:40,c:["#6a3f8f","#150c22"],d:"Шөнийн такси жолооч болон зорчигчдын хачин инээдтэй түүхүүд.",tags:["Инээдмийн"]},
+ {id:"s8",t:"Хадам ээжийн дайн",eps:45,c:["#a0603a","#22120a"],d:"Хоёр хадам ээж нэг байранд нүүж ирэхэд гэр бүлийн амьдрал хөмрөнө.",tags:["Гэр бүл","Инээдмийн"]}
+];
+const FREE=5, PRICE=9900, SERIES_PRICE=4900, DAYS=30;
+const PLANS={month:{label:"1 сарын эрх",price:PRICE,desc:DAYS+" хоног · бүх цуврал, бүх анги"},series:{label:"Цуврал түрээс",price:SERIES_PRICE,desc:"Нэг цувралын бүх анги · "+DAYS+" хоног"}};
+function applyConfirm(cur,p,now){
+  const sub={until:(cur&&cur.until)||0,since:(cur&&cur.since)||now,series:Object.assign({},(cur&&cur.series)||{})};
+  if(p.plan==="series"&&p.seriesId){sub.series[p.seriesId]=Math.max(now,sub.series[p.seriesId]||0)+DAYS*864e5}
+  else{sub.until=Math.max(now,sub.until)+DAYS*864e5}
+  return sub;
+}
+const seriesTitle=id=>(SERIES.find(s=>s.id===id)||{}).t||"";
+const BANK={name:"Цагаан дэлгэц ХХК (жишээ)",bank:"Банк: TBD",acct:"Данс: TBD"};
+const fmt=n=>Number(n||0).toLocaleString("en-US")+"₮";
+const fdate=ms=>{const d=new Date(ms);return d.getFullYear()+"."+String(d.getMonth()+1).padStart(2,"0")+"."+String(d.getDate()).padStart(2,"0")};
+const ftime=ms=>{const d=new Date(ms);return fdate(ms)+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")};
+const $=id=>document.getElementById(id);
+function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2600)}
+function refCode(uid){let h=0;for(const ch of uid)h=(h*31+ch.charCodeAt(0))>>>0;return "CD-"+String(h%9000+1000)}
+
+/* ---- state ---- */
+const S={uid:null,payment:null,sub:null,isAdmin:false,adminOpen:false,payments:[],subs:[],ledger:[],backend:"loading",cur:null};
+const subActive=()=>!!(S.sub&&S.sub.until>Date.now());
+const seriesUntil=sid=>((S.sub&&S.sub.series)||{})[sid]||0;
+const rentedIds=()=>Object.keys((S.sub&&S.sub.series)||{}).filter(id=>seriesUntil(id)>Date.now());
+const isOpen=(n,sid)=>n<=FREE||subActive()||seriesUntil(sid)>Date.now();
+
+/* ---- sign-in (demo: phone + one-time code; only a masked number is kept, in this browser) ---- */
+S.auth=(()=>{try{return JSON.parse(localStorage.getItem("cd-auth")||"null")}catch(e){return null}})();
+const maskPhone=p=>p.slice(0,2)+"**-**"+p.slice(6);
+function setAuth(v){S.auth=v;try{v?localStorage.setItem("cd-auth",JSON.stringify(v)):localStorage.removeItem("cd-auth")}catch(e){}render()}
+const ACC_KEY="cd-accounts";
+const phoneKey=p=>{let h=5381;for(const c of p)h=((h*33)^c.charCodeAt(0))>>>0;return "p"+h.toString(36)};
+const accounts=()=>{try{return JSON.parse(localStorage.getItem(ACC_KEY)||"{}")}catch(e){return{}}};
+function saveAccount(k,v){const a=accounts();a[k]=v;try{localStorage.setItem(ACC_KEY,JSON.stringify(a))}catch(e){}}
+function showLogin(then,mode){
+  let phone="",code="",name="";mode=mode||"login";
+  const step1=()=>{const reg=mode==="register";
+    sheet.innerHTML=`<div class="row" role="tablist" style="margin-bottom:14px"><button class="pill ${reg?"ghost":""}" type="button" id="t-login" aria-pressed="${!reg}">Нэвтрэх</button><button class="pill ${reg?"":"ghost"}" type="button" id="t-reg" aria-pressed="${reg}">Бүртгүүлэх</button></div>
+    <h4>${reg?"Бүртгүүлэх":"Нэвтрэх"}</h4><p class="sub">${reg?"Нэр, утасны дугаараа оруулахад баталгаажуулах код ирнэ.":"Бүртгэлтэй утасны дугаараа оруулахад нэг удаагийн код ирнэ."}</p>
+    ${reg?`<div class="field"><label for="nm">Нэр</label><input id="nm" type="text" autocomplete="given-name" maxlength="40" placeholder="Таны нэр" style="font-family:var(--body);letter-spacing:0"></div>`:""}
+    <div class="field"><label for="ph">Утасны дугаар</label><input id="ph" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="8" placeholder="8 оронтой дугаар"></div>
+    ${reg?`<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted);margin-bottom:14px"><input id="agree" type="checkbox" style="margin-top:3px;accent-color:var(--gold)"> Үйлчилгээний нөхцөлийг зөвшөөрч байна. Төлбөртэй ангийг нэг удаад 1 дэлгэц дээр үзнэ, эрхээ бусадтай хуваалцахгүй.</label>`:""}
+    <div class="err" id="err"></div>
+    <div class="row"><button class="btn pri" type="button" id="send">Код авах</button><button class="btn sec" type="button" data-act="close">Болих</button></div>`;
+    $("t-login").onclick=()=>{mode="login";step1()};$("t-reg").onclick=()=>{mode="register";step1()};
+    const ph=$("ph");(reg?$("nm"):ph).focus();
+    const go=()=>{const v=ph.value.replace(/\D/g,"");const err=$("err");
+      if(reg){name=$("nm").value.trim();if(name.length<2){err.textContent="Нэрээ оруулна уу";return}}
+      if(!/^\d{8}$/.test(v)){err.textContent="8 оронтой утасны дугаар оруулна уу";return}
+      const exists=!!accounts()[phoneKey(v)];
+      if(reg&&exists){err.innerHTML="Энэ дугаар бүртгэлтэй байна. <u style='cursor:pointer' id='sw'>Нэвтрэх</u>";$("sw").onclick=()=>{mode="login";step1()};return}
+      if(!reg&&!exists){err.innerHTML="Бүртгэлгүй дугаар байна. <u style='cursor:pointer' id='sw'>Бүртгүүлэх</u>";$("sw").onclick=()=>{mode="register";step1()};return}
+      if(reg&&!$("agree").checked){err.textContent="Нөхцөлийг зөвшөөрнө үү";return}
+      phone=v;code=String(Math.floor(1000+Math.random()*9000));step2()};
+    $("send").onclick=go;ph.onkeydown=e=>{if(e.key==="Enter")go()}};
+  const step2=()=>{sheet.innerHTML=`<h4>Код оруулах</h4><p class="sub">${maskPhone(phone)} дугаарт 4 оронтой код илгээлээ.</p>
+    <div class="note">Демо горим: SMS илгээгдэхгүй. Таны код: <span class="demo-code">${code}</span></div>
+    <div class="field"><label for="otp">Нэг удаагийн код</label><input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="4" placeholder="••••"></div>
+    <div class="err" id="err"></div>
+    <div class="row"><button class="btn pri" type="button" id="ok">Нэвтрэх</button><button class="btn sec" type="button" id="backph">Дугаар солих</button></div>`;
+    const ot=$("otp");ot.focus();
+    const go=()=>{if(ot.value.trim()!==code){$("err").textContent="Код буруу байна. Дахин шалгана уу";return}
+      const k=phoneKey(phone);
+      if(mode==="register") saveAccount(k,{name,phone:maskPhone(phone),createdAt:Date.now()});
+      const acc=accounts()[k]||{};
+      setAuth({phone:maskPhone(phone),name:acc.name||"",at:Date.now()});toast(mode==="register"?"Бүртгэл үүслээ":"Нэвтэрлээ");if(then)then();else close()};
+    $("ok").onclick=go;ot.onkeydown=e=>{if(e.key==="Enter")go()};$("backph").onclick=step1};
+  openSheet("",null);step1();
+}
+function showAccount(){
+  if(!S.auth) return showLogin();
+  const lines=[subActive()?"1 сарын эрх: "+fdate(S.sub.until)+" хүртэл":"",...rentedIds().map(id=>"Түрээс: "+seriesTitle(id)+" · "+fdate(seriesUntil(id))+" хүртэл")].filter(Boolean);
+  openSheet(`<h4>Миний бүртгэл</h4><p class="sub"><span id="acc-name"></span>${S.auth.phone}</p>
+    <ul class="steps">${lines.length?lines.map(l=>`<li>${l}</li>`).join(""):"<li>Идэвхтэй эрх алга</li>"}<li>Төлбөртэй ангийг нэг удаад 1 дэлгэц дээр үзнэ</li></ul>
+    <div class="row"><button class="btn sec" type="button" data-act="logout">Гарах</button><button class="btn sec" type="button" data-act="close">Хаах</button></div>`);
+  const an=$("acc-name");if(an&&S.auth.name)an.textContent=S.auth.name+" · ";
+}
+
+/* ---- one device at a time: the newest device that opens a paid episode wins ---- */
+const DEVICE=(()=>{let d=null;try{d=sessionStorage.getItem("cd-screen")}catch(e){}if(!d){d="d"+Math.random().toString(36).slice(2,10);try{sessionStorage.setItem("cd-screen",d)}catch(e){}}return d})();
+S.session=null; S.claimedAt=0;
+const kicked=()=>!!(S.session&&S.session.device!==DEVICE&&S.claimedAt&&S.session.at>=S.claimedAt);
+
+/* ---- backend: shared db when available, otherwise a local demo ---- */
+let B=null;
+const local={
+  key:"cd-demo-v2",
+  load(){try{return JSON.parse(localStorage.getItem(this.key)||"{}")}catch(e){return{}}},
+  save(v){try{localStorage.setItem(this.key,JSON.stringify(v))}catch(e){}},
+};
+function makeLocal(){
+  let st=Object.assign({payments:{},subs:{},ledger:[]},local.load());
+  const uid="demo-user";
+  const push=()=>{local.save(st);S.payment=st.payments[uid]||null;S.sub=st.subs[uid]||null;
+    S.payments=Object.entries(st.payments).map(([id,v])=>({id,...v}));S.subs=Object.entries(st.subs).map(([id,v])=>({id,...v}));S.ledger=st.ledger.slice();render()};
+  const readSess=()=>{try{S.session=JSON.parse(localStorage.getItem("cd-session")||"null")}catch(e){S.session=null}};
+  window.addEventListener("storage",e=>{if(e.key==="cd-session"){readSess();render()}});
+  return {kind:"demo",uid,
+    start(){readSess();push()},
+    async claim(){const v={device:DEVICE,at:Date.now()};try{localStorage.setItem("cd-session",JSON.stringify(v))}catch(e){}S.session=v},
+    async requestPay(p){st.payments[uid]=p;push()},
+    async confirm(id){const p=st.payments[id];if(!p)return;const now=Date.now();
+      st.subs[id]=applyConfirm(st.subs[id],p,now);st.payments[id]={...p,status:"confirmed",decidedAt:now};st.ledger.push({uid:id,amount:p.amount,at:now,ref:p.ref,plan:p.plan||"month",seriesId:p.seriesId||null});push()},
+    async reject(id){const p=st.payments[id];if(!p)return;st.payments[id]={...p,status:"rejected",decidedAt:Date.now()};push()},
+    async reset(){st={payments:{},subs:{},ledger:[]};push()}
+  };
+}
+function makeDb(db,uid){
+  const unsubs=[];
+  return {kind:"db",uid,
+    start(admin){
+      unsubs.push(db.doc("payments/"+uid).onSnapshot(s=>{S.payment=s.exists?s.data():null;render()},()=>{}));
+      unsubs.push(db.doc("subs/"+uid).onSnapshot(s=>{S.sub=s.exists?s.data():null;render()},()=>{}));
+      unsubs.push(db.collection("data/users/"+uid).doc("session").onSnapshot(s=>{S.session=s.exists?s.data():null;render()},()=>{}));
+      if(admin){
+        unsubs.push(db.collection("payments").onSnapshot(q=>{S.payments=q.docs.map(d=>({id:d.id,...d.data()}));render()},()=>{}));
+        unsubs.push(db.collection("subs").onSnapshot(q=>{S.subs=q.docs.map(d=>({id:d.id,...d.data()}));render()},()=>{}));
+        unsubs.push(db.collection("ledger").orderBy("at","desc").limit(200).onSnapshot(q=>{S.ledger=q.docs.map(d=>d.data());render()},()=>{}));
+      }
+    },
+    async requestPay(p){await db.doc("payments/"+uid).set(p)},
+    async claim(){const v={device:DEVICE,at:Date.now()};S.session=v;await db.collection("data/users/"+uid).doc("session").set(v)},
+    async confirm(id){const p=S.payments.find(x=>x.id===id);if(!p)return;const now=Date.now();const cur=S.subs.find(x=>x.id===id);
+      const sub=applyConfirm(cur,p,now);
+      await db.doc("subs/"+id).set(sub);
+      await db.doc("payments/"+id).update({status:"confirmed",decidedAt:now});
+      await db.collection("ledger").add({uid:id,amount:p.amount,at:now,ref:p.ref,plan:p.plan||"month",seriesId:p.seriesId||null})},
+    async reject(id){await db.doc("payments/"+id).update({status:"rejected",decidedAt:Date.now()})},
+    reset:null
+  };
+}
+(async()=>{
+  let db=null,user=null;
+  try{[db,user]=await Promise.all([window.claude?.use?.("db")??null,window.claude?.use?.("user")??null])}catch(e){}
+  const uid=user?await user.id():null;
+  if(db&&uid){
+    S.isAdmin=await user.canEdit();
+    B=makeDb(db,uid);S.uid=uid;S.backend="db";B.start(S.isAdmin);
+    $("proto").textContent="Прототип · Цуврал, үнэ, данс жишээ. Төлбөрийн хүсэлт, эрх нь жинхэнэ өгөгдлийн санд хадгалагдана.";
+  }else{
+    B=makeLocal();S.uid=B.uid;S.backend="demo";S.isAdmin=true;B.start();
+    $("proto").textContent="Демо · Бүх зүйл таны хөтөч дээр л ажиллана, жинхэнэ төлбөр, SMS байхгүй. Дээд талын «Админ» товчоор админы талыг үзэж болно.";
+  }
+  window._profiles=user&&S.backend==="db"?ids=>user.profiles(ids):async ids=>Object.fromEntries(ids.map(i=>[i,{name:i==="demo-user"?"Демо хэрэглэгч":""}]));
+  render();
+})();
+
+/* ---- render ---- */
+function poster(s,big){return `<div class="poster" style="background:linear-gradient(165deg,${s.c[0]},${s.c[1]})"><span class="badge">AI · ${s.eps} АНГИ</span><span class="pt" ${big?'style="font-size:24px"':""}>${s.t}</span></div>`}
+function render(){
+  const st=$("status"),buy=$("buy-btn");
+  const p=S.payment;
+  if(subActive()){st.className="status ok";st.textContent="Эрх идэвхтэй · "+fdate(S.sub.until)+" хүртэл";buy.textContent="Сунгах"}
+  else if(rentedIds().length&&!(p&&p.status==="pending")){st.className="status ok";st.textContent="Түрээс: "+rentedIds().length+" цуврал";buy.textContent="1 сарын эрх"}
+  else if(p&&p.status==="pending"){st.className="status wait";st.textContent="Төлбөр шалгагдаж байна";buy.textContent="QR харах"}
+  else{st.className="status";st.textContent=p&&p.status==="rejected"?"Төлбөр баталгаажаагүй":"Эрхгүй";buy.textContent="1 сарын эрх"}
+  $("auth-btn").textContent=S.auth?"👤 "+(S.auth.name||S.auth.phone):"Нэвтрэх / Бүртгүүлэх";
+  $("admin-btn").hidden=!S.isAdmin;
+  $("admin-btn").setAttribute("aria-pressed",S.adminOpen);
+  $("viewer-view").hidden=S.adminOpen;$("admin-view").hidden=!S.adminOpen;
+  if(S.adminOpen) return renderAdmin();
+  const h=SERIES[0];
+  $("hero").innerHTML=`<button class="card" type="button" data-id="${h.id}" aria-label="${h.t}">${poster(h,true)}</button>
+    <div><div class="sub">Энэ долоо хоногийн №1</div><h2>${h.t}</h2><p>${h.d}</p>
+    <div class="tags">${h.tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
+    <button class="btn pri" type="button" data-act="ep" data-id="${h.id}" data-n="1">▶ 1-р анги үнэгүй</button></div>`;
+  $("shelves").innerHTML=`<h3 class="shelf">Бүх цуврал</h3><div class="grid">${SERIES.map(s=>`<button class="card" type="button" data-id="${s.id}">${poster(s)}<div class="meta"><strong>${s.t}</strong>${s.eps} анги · эхний ${FREE} үнэгүй</div></button>`).join("")}</div>`;
+  if(!$("scrim").hidden&&openSheet.refresh) openSheet.refresh();
+}
+
+async function renderAdmin(){
+  const now=Date.now(), ym=new Date().getFullYear()*100+new Date().getMonth();
+  const pending=S.payments.filter(p=>p.status==="pending").sort((a,b)=>a.createdAt-b.createdAt);
+  const active=S.subs.filter(s=>s.until>now||Object.values(s.series||{}).some(u=>u>now)).sort((a,b)=>(a.until||0)-(b.until||0));
+  const planText=p=>p.plan==="series"?"Цуврал түрээс: "+seriesTitle(p.seriesId):"1 сарын эрх";
+  const subText=s=>[s.until>now?"Сарын эрх "+fdate(s.until)+" хүртэл":"",...Object.entries(s.series||{}).filter(([,u])=>u>now).map(([id,u])=>seriesTitle(id)+" "+fdate(u)+" хүртэл")].filter(Boolean).join(" · ");
+  const monthRev=S.ledger.filter(l=>{const d=new Date(l.at);return d.getFullYear()*100+d.getMonth()===ym}).reduce((a,l)=>a+(l.amount||0),0);
+  const ids=[...new Set([...pending.map(p=>p.id),...active.map(s=>s.id)])];
+  const ps=ids.length?await window._profiles(ids):{};
+  const nm=id=>(ps[id]&&ps[id].name)||"Хэрэглэгч";
+  const el=$("admin-view");
+  el.innerHTML=`<h3 class="shelf">Админ</h3>
+   <div class="kpis">
+     <div class="kpi ${pending.length?"attn":""}"><div class="n">${pending.length}</div><div class="l">Шалгах төлбөр</div></div>
+     <div class="kpi"><div class="n">${active.length}</div><div class="l">Идэвхтэй сарын эрх</div></div>
+     <div class="kpi"><div class="n">${fmt(monthRev)}</div><div class="l">Энэ сарын баталгаажсан орлого</div></div>
+   </div>
+   <div class="note">Банкны аппаас орж ирсэн гүйлгээний <b>утга</b> дээрх кодыг (жишээ нь CD-4821) доорх кодтой тулгаад, дүн нь таарч байвал (сарын эрх ${fmt(PRICE)}, цуврал түрээс ${fmt(SERIES_PRICE)}) «Баталгаажуулах» дарна. Эрх ${DAYS} хоногоор нээгдэнэ, идэвхтэй эрх дээр нэмэгдэнэ.</div>
+   <h3 class="shelf">Шалгах төлбөр</h3>
+   <div class="list">${pending.length?pending.map(p=>`<div class="item"><div class="who"><b data-name="${p.id}"></b><span>${planText(p)} · Код <b style="display:inline;color:var(--gold);font-family:var(--mono)">${p.ref}</b> · ${fmt(p.amount)} · ${ftime(p.createdAt)}</span></div>
+      <div class="row"><button class="btn okb small" type="button" data-act="confirm" data-id="${p.id}">Баталгаажуулах</button><button class="btn sec small" type="button" data-act="reject" data-id="${p.id}">Татгалзах</button></div></div>`).join(""):`<div class="empty">Шалгах төлбөр алга. Хэрэглэгч «Төлсөн» дарахад энд гарч ирнэ.</div>`}</div>
+   <h3 class="shelf">Идэвхтэй эрх</h3>
+   <div class="list">${active.length?active.map(s=>`<div class="item"><div class="who"><b data-name="${s.id}"></b><span>${subText(s)}</span></div><span class="chip ok">Идэвхтэй</span></div>`).join(""):`<div class="empty">Идэвхтэй эрх алга.</div>`}</div>
+   ${B&&B.reset?`<button class="btn sec small" type="button" data-act="reset">Демо өгөгдлийг цэвэрлэх</button>`:""}`;
+  el.querySelectorAll("[data-name]").forEach(b=>b.textContent=nm(b.dataset.name));
+}
+
+/* ---- sheets ---- */
+const scrim=$("scrim"),sheet=$("sheet");let lastFocus=null;
+function openSheet(html,refresh){lastFocus=document.activeElement;sheet.innerHTML=html;scrim.hidden=false;openSheet.refresh=refresh||null;sheet.querySelector("button,input")?.focus()}
+function close(){scrim.hidden=true;openSheet.refresh=null;lastFocus?.focus?.()}
+scrim.addEventListener("click",e=>{if(e.target===scrim)close()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!scrim.hidden)close()});
+
+function showSeries(s){
+  S.cur=s;
+  const draw=()=>{const eps=Array.from({length:Math.min(s.eps,24)},(_,i)=>i+1);
+   sheet.innerHTML=`<h4>${s.t}</h4><p class="sub">${s.eps} анги · ангид 1–2 минут</p><p>${s.d}</p>
+   <div class="legend"><span><b style="color:var(--ok)">■</b> Үнэгүй</span><span><b style="color:var(--gold)">■</b> Нээлттэй</span><span>🔒 Түрээс эсвэл сарын эрхээр</span></div>
+   <div class="eps">${eps.map(n=>`<button type="button" class="ep ${n<=FREE?"free":isOpen(n,s.id)?"open":"locked"}" data-act="ep" data-id="${s.id}" data-n="${n}">${n}</button>`).join("")}</div>
+   ${s.eps>24?`<p class="sub">… ${s.eps}-р анги хүртэл</p>`:""}
+   ${isOpen(FREE+1,s.id)?`<p class="sub" style="color:var(--ok)">✓ Энэ цувралын бүх анги нээлттэй${seriesUntil(s.id)>Date.now()&&!subActive()?" · "+fdate(seriesUntil(s.id))+" хүртэл":""}</p>`:""}
+   <div class="row">${isOpen(FREE+1,s.id)?"":`<button class="btn pri" type="button" data-act="rent" data-id="${s.id}">Бүтэн түрээслэх · ${fmt(SERIES_PRICE)}</button>`}<button class="btn sec" type="button" data-act="close">Хаах</button></div>`};
+  openSheet("",draw);draw();sheet.querySelector("button")?.focus();
+}
+function showEp(s,n){
+  S.cur=s;
+  if(!isOpen(n,s.id)) return openSheet(`<h4>${n}-р анги түгжээтэй</h4><p class="sub">${s.t}</p>
+    <p>Үргэлжлэлийг 2 янзаар үзнэ:</p>
+    <ul class="steps"><li><b>Энэ цувралыг бүтэн түрээслэх</b>: ${fmt(SERIES_PRICE)}, бүх ${s.eps} анги, ${DAYS} хоног</li><li><b>1 сарын эрх</b>: ${fmt(PRICE)}, бүх цуврал, ${DAYS} хоног</li></ul>
+    <div class="row"><button class="btn pri" type="button" data-act="rent" data-id="${s.id}">Түрээслэх · ${fmt(SERIES_PRICE)}</button><button class="btn sec" type="button" data-act="buy">1 сарын эрх · ${fmt(PRICE)}</button><button class="btn sec" type="button" data-act="back">Буцах</button></div>`);
+  const paid=n>FREE;
+  if(paid&&B&&B.claim){S.claimedAt=Date.now();B.claim().catch(()=>{})}
+  const draw=()=>{
+    if(paid&&kicked()){sheet.innerHTML=`<h4>Өөр төхөөрөмж дээр нээгдлээ</h4><p class="sub">${s.t} · ${n}-р анги</p>
+      <p>Таны эрхээр нэг удаад <b>зөвхөн 1 төхөөрөмж</b> дээр үзнэ. Өөр утас эсвэл компьютер дээр анги нээгдсэн тул энд зогслоо.</p>
+      <div class="row"><button class="btn pri" type="button" data-act="ep" data-id="${s.id}" data-n="${n}">Энд үргэлжлүүлэх</button><button class="btn sec" type="button" data-act="close">Хаах</button></div>`;return}
+    sheet.innerHTML=`<div class="player" style="background:linear-gradient(165deg,${s.c[0]},${s.c[1]});position:relative"><span class="cap">${s.t} · ${n}/${s.eps}</span><span class="play">▶ ${n}-р анги</span><span class="cap">Энд AI-аар хийсэн 1–2 минутын босоо видео тоглоно</span>
+      ${paid?`<span class="wm" aria-hidden="true">${refCode(S.uid||"x")}</span>`:""}</div>
+    <div class="row">${n<s.eps?`<button class="btn pri" type="button" data-act="ep" data-id="${s.id}" data-n="${n+1}">Дараагийн анги ▶</button>`:""}<button class="btn sec" type="button" data-act="back">Бүх анги</button></div>`};
+  openSheet("",draw);draw();
+}
+function showPay(force,plan,sid){
+  plan=plan||"month";S.payPlan={plan,sid:sid||null};
+  const P=PLANS[plan], ref=refCode(S.uid||"x");
+  const draw=()=>{
+    const p=S.payment;
+    if(plan==="series"&&!(p&&p.status==="pending")&&isOpen(FREE+1,sid)){sheet.innerHTML=`<h4>Түрээс идэвхтэй ✓</h4><p class="sub">${seriesTitle(sid)}: бүх анги нээлттэй.</p><div class="row"><button class="btn sec" type="button" data-act="close">Хаах</button></div>`;return}
+    if(plan==="month"&&!force&&subActive()&&!(p&&p.status==="pending")){
+      sheet.innerHTML=`<h4>Эрх идэвхтэй ✓</h4><p class="sub">${fdate(S.sub.until)} хүртэл бүх анги нээлттэй.</p>
+       <p>Сунгах бол дахин төлөхөд одоогийн эрх дээр ${DAYS} хоног нэмэгдэнэ.</p>
+       <div class="row"><button class="btn pri" type="button" data-act="renew">Сунгах</button><button class="btn sec" type="button" data-act="close">Хаах</button></div>`;return}
+    const pending=p&&p.status==="pending";
+    const pendTitle=pending?(p.plan==="series"?"Цуврал түрээс: "+seriesTitle(p.seriesId):"1 сарын эрх"):"";
+    sheet.innerHTML=`<h4>${pending?pendTitle:P.label}</h4><p class="sub">${pending?"":plan==="series"?seriesTitle(sid)+" · ":""}${pending?"":P.desc}</p>
+     <div class="qr"><canvas id="qr" width="160" height="160" aria-label="Төлбөрийн QR код (жишээ)"></canvas>
+      <div><div class="amt">${fmt(pending?p.amount:P.price)}</div><div class="sub" style="margin:6px 0">Гүйлгээний утга:</div><span class="ref">${ref}</span></div></div>
+     <ol class="steps"><li>Банкны аппаараа QR-ыг уншуулна (эсвэл ${BANK.bank}, ${BANK.acct} руу шилжүүлнэ).</li><li>Гүйлгээний утган дээр <b>${ref}</b> гэж заавал бичнэ.</li><li>Төлсний дараа «Би төлсөн» дарна. Админ шалгаад эрхийг нээнэ.</li></ol>
+     ${pending?`<div class="note">⏳ Таны төлбөр шалгагдаж байна (${ftime(p.createdAt)}). Баталгаажмагц энэ цонх автоматаар шинэчлэгдэнэ.</div>`:""}
+     ${p&&p.status==="rejected"?`<div class="note" style="border-color:var(--bad)">Өмнөх төлбөр баталгаажаагүй. Гүйлгээний утга, дүнгээ шалгаад дахин илгээнэ үү.</div>`:""}
+     <div class="row">${pending?`<button class="btn sec" type="button" disabled>Шалгагдаж байна…</button>`:`<button class="btn pri" type="button" data-act="paid">Би төлсөн</button>`}<button class="btn sec" type="button" data-act="close">Хаах</button></div>`;
+    drawQR($("qr"),ref);
+  };
+  openSheet("",draw);draw();
+}
+function drawQR(c,seed){if(!c)return;const x=c.getContext("2d"),n=25,s=6.4;let h=0;for(const ch of String(seed))h=(h*31+ch.charCodeAt(0))>>>0;const r=()=>(h=(h*1103515245+12345)>>>0,h/4294967296);x.fillStyle="#fff";x.fillRect(0,0,160,160);x.fillStyle="#111";for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(r()>.55)x.fillRect(i*s,j*s,s,s);for(const[a,b]of[[0,0],[18,0],[0,18]]){x.fillStyle="#111";x.fillRect(a*s,b*s,7*s,7*s);x.fillStyle="#fff";x.fillRect((a+1)*s,(b+1)*s,5*s,5*s);x.fillStyle="#111";x.fillRect((a+2)*s,(b+2)*s,3*s,3*s)}}
+
+/* ---- actions ---- */
+let busy=false;
+async function act(fn,ok){if(busy)return;busy=true;try{await fn();if(ok)toast(ok)}catch(e){toast(e&&e.code==="invalid_argument"?"Энэ үйлдлийг хийх эрхгүй байна":"Хадгалж чадсангүй. Дахин оролдоно уу")}finally{busy=false}}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");
+  const card=e.target.closest(".card");
+  if(card&&!b) return showSeries(SERIES.find(s=>s.id===card.dataset.id));
+  if(!b||b.disabled) return;
+  const a=b.dataset.act;
+  if(a==="close") return close();
+  if(a==="account") return showAccount();
+  if(a==="logout"){setAuth(null);close();return toast("Гарлаа")}
+  if(!S.auth&&["ep","buy","renew","rent","paid"].includes(a)){const replay=()=>b.isConnected?b.click():(a==="ep"?showEp(SERIES.find(x=>x.id===b.dataset.id),+b.dataset.n):a==="rent"?showPay(false,"series",b.dataset.id):showPay(false,"month"));return showLogin(replay)}
+  if(a==="back") return S.cur?showSeries(S.cur):close();
+  if(a==="ep") return showEp(SERIES.find(x=>x.id===b.dataset.id),+b.dataset.n);
+  if(a==="buy") return showPay(false,"month");
+  if(a==="renew") return showPay(true,"month");
+  if(a==="rent") return showPay(false,"series",b.dataset.id);
+  if(a==="paid"){if(!B)return;const pp=S.payPlan||{plan:"month"};
+    return act(()=>B.requestPay({ref:refCode(S.uid),amount:PLANS[pp.plan].price,plan:pp.plan,seriesId:pp.sid,status:"pending",createdAt:Date.now()}),"Төлбөрийн хүсэлт илгээгдлээ")}
+  if(a==="admin"){S.adminOpen=!S.adminOpen;return render()}
+  if(a==="confirm") return act(()=>B.confirm(b.dataset.id),"Баталгаажлаа · эрх "+DAYS+" хоногоор нээгдлээ");
+  if(a==="reject") return act(()=>B.reject(b.dataset.id),"Татгалзлаа");
+  if(a==="reset") return act(()=>B.reset(),"Демо өгөгдөл цэвэрлэгдлээ");
+});
+render();
+</script>
+
+</body>
+</html>
